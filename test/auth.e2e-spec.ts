@@ -38,14 +38,6 @@ describe('AuthController (e2e)', () => {
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-      providers: [
-        {
-          provide: JwtService,
-          useValue: {
-            signAsync: jest.fn().mockReturnValue('mocked-token'),
-          },
-        },
-      ],
     })
       .overrideProvider(getRepositoryToken(Profile))
       .useValue(mockRepository)
@@ -53,6 +45,10 @@ describe('AuthController (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     await app.init();
+  });
+
+  afterAll(async () => {
+    await app.close();
   });
 
   it('login with non-existent user: FAIL (POST)', async () => {
@@ -166,6 +162,124 @@ describe('AuthController (e2e)', () => {
         message: 'Profile already exists',
         error: 'Bad Request',
         statusCode: 400,
+      });
+  });
+
+  it('social sign in, user already exists, should return user: SUCCESS (POST)', async () => {
+    const mockRepository = {
+      findOne: jest.fn().mockResolvedValue({
+        ...mockUser,
+        providerType: ProviderType.GOOGLE,
+      }),
+
+      findOneBy: jest.fn().mockResolvedValue({
+        ...mockUser,
+        providerType: ProviderType.GOOGLE,
+        username: mockUser.email.split('@')[0],
+      }),
+    };
+
+    const jwtMock = {
+      decode: jest
+        .fn()
+        .mockReturnValue({ sub: 'user_sub', email: mockUser.email }),
+    };
+
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+      .overrideProvider(getRepositoryToken(Profile))
+      .useValue(mockRepository)
+
+      .overrideProvider(JwtService)
+      .useValue(jwtMock)
+      .compile();
+
+    app = moduleFixture.createNestApplication();
+    await app.init();
+
+    return request(app.getHttpServer())
+      .post('/auth/login/social')
+      .send({ providerType: ProviderType.GOOGLE })
+      .set('Authorization', 'Bearer mocked-token')
+      .expect(200)
+      .expect({
+        email: mockUser.email,
+        providerType: ProviderType.GOOGLE,
+        username: mockUser.email.split('@')[0],
+      });
+  });
+
+  it('social sign in, user does not exist, should return created user: SUCCESS (POST)', async () => {
+    const mockRepository = {
+      findOne: jest.fn().mockResolvedValue({
+        ...mockUser,
+        providerType: ProviderType.GOOGLE,
+      }),
+      save: jest.fn().mockResolvedValue({
+        ...mockUser,
+        providerType: ProviderType.GOOGLE,
+        username: mockUser.email.split('@')[0],
+      }),
+      findOneBy: jest.fn().mockResolvedValue(null),
+    };
+
+    const jwtMock = {
+      decode: jest
+        .fn()
+        .mockReturnValue({ sub: 'user_sub', email: mockUser.email }),
+    };
+
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+      .overrideProvider(getRepositoryToken(Profile))
+      .useValue(mockRepository)
+
+      .overrideProvider(JwtService)
+      .useValue(jwtMock)
+      .compile();
+
+    app = moduleFixture.createNestApplication();
+    await app.init();
+
+    return request(app.getHttpServer())
+      .post('/auth/login/social')
+      .send({ providerType: ProviderType.GOOGLE })
+      .set('Authorization', 'Bearer mocked-token')
+      .expect(200)
+      .expect({
+        email: mockUser.email,
+        providerType: ProviderType.GOOGLE,
+        username: mockUser.email.split('@')[0],
+      });
+  });
+
+  it('social sign in, invalid token: SUCCESS (POST)', async () => {
+    const jwtMock = {
+      decode: jest.fn().mockReturnValue(null),
+    };
+
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+
+      .overrideProvider(JwtService)
+      .useValue(jwtMock)
+      .compile();
+
+    app = moduleFixture.createNestApplication();
+    await app.init();
+
+    return request(app.getHttpServer())
+      .post('/auth/login/social')
+      .send({ providerType: ProviderType.GOOGLE })
+      .set('Authorization', 'Bearer mocked-token')
+      .expect(401)
+      .expect({
+        message: 'Invalid token',
+        error: 'Unauthorized',
+        statusCode: 401,
       });
   });
 });

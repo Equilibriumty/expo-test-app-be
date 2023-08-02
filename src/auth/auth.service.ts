@@ -1,8 +1,13 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthDto, SocialAuthDto } from './dto/auth.dto';
 import { ProfileService } from '../profile/profile.service';
 import * as argon2 from 'argon2';
 import { JwtService } from '@nestjs/jwt';
+import { Request } from 'express';
 
 @Injectable()
 export class AuthService {
@@ -40,7 +45,38 @@ export class AuthService {
     return { ...createdUser, token: await this.jwtService.signAsync(payload) };
   }
 
-  loginWithSocial(createAuthDto: SocialAuthDto) {
-    return 'This action adds a new auth';
+  async loginWithSocial(socialAuthDto: SocialAuthDto, req: Request) {
+    const token = this.extractTokenFromHeader(req);
+
+    if (!token) {
+      throw new UnauthorizedException('Token is required');
+    }
+
+    const decodedData = this.jwtService.decode(token);
+
+    if (!decodedData) throw new UnauthorizedException('Invalid token');
+
+    const localUser = await this.profileService.findOne(decodedData['email']);
+
+    if (!localUser) {
+      const newUser = await this.profileService.createSocialProfile({
+        email: decodedData['email'] ?? '',
+        password: '',
+        avatar: decodedData['picture'] ?? '',
+        providerType: socialAuthDto.providerType,
+      });
+
+      return newUser;
+    } else {
+      delete localUser.password;
+
+      return localUser;
+    }
+  }
+
+  private extractTokenFromHeader(request: Request): string | undefined {
+    const [type, token] = request.headers.authorization?.split(' ') ?? [];
+
+    return type === 'Bearer' ? token : undefined;
   }
 }

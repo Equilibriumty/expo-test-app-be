@@ -13,6 +13,19 @@ export class ProfileService {
     @InjectRepository(Profile) private profileRepository: Repository<Profile>,
   ) {}
 
+  async createSocialProfile(createProfileDto: CreateProfileDto) {
+    const user = await this.profileRepository.save({
+      email: createProfileDto.email,
+      password: await argon2.hash(createProfileDto.password),
+      avatar: createProfileDto.avatar,
+      username: createProfileDto.email.split('@')[0],
+      providerType: createProfileDto.providerType,
+    });
+
+    delete user.password;
+    return user;
+  }
+
   async createProfile(createProfileDto: CreateProfileDto) {
     const existingProfile = await this.profileRepository.findOne({
       where: {
@@ -25,18 +38,13 @@ export class ProfileService {
     const user = await this.profileRepository.save({
       email: createProfileDto.email,
       password: await argon2.hash(createProfileDto.password),
+      avatar: createProfileDto.avatar,
       username: createProfileDto.email.split('@')[0],
       providerType: createProfileDto.providerType,
     });
 
-    return {
-      id: user.id,
-      email: user.email,
-      username: user.username,
-      providerType: user.providerType,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-    };
+    delete user.password;
+    return user;
   }
 
   async updateProfile(id: number, updateProfileDto: UpdateProfileDto) {

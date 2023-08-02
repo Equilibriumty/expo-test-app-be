@@ -1,7 +1,14 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  Req,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthDto, SocialAuthDto } from './dto/auth.dto';
-import { ProfileService } from 'src/profile/profile.service';
+import { Request } from 'express';
 
 @Controller('auth')
 export class AuthController {
@@ -15,8 +22,8 @@ export class AuthController {
 
   @Post('login/social')
   @HttpCode(HttpStatus.OK)
-  loginWithSocial(@Body() createAuthDto: SocialAuthDto) {
-    return this.authService.loginWithSocial(createAuthDto);
+  loginWithSocial(@Body() createAuthDto: SocialAuthDto, @Req() req: Request) {
+    return this.authService.loginWithSocial(createAuthDto, req);
   }
 
   @Post('register')

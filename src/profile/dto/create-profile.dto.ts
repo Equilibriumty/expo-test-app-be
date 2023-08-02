@@ -12,4 +12,8 @@ export class CreateProfileDto {
   @IsEnum(ProviderType)
   @IsOptional()
   providerType?: ProviderType;
+
+  @IsString()
+  @IsOptional()
+  avatar?: string;
 }
