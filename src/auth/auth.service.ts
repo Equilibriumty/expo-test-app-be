@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { AuthDto, SocialAuthDto } from './dto/auth.dto';
-import { ProfileService } from 'src/profile/profile.service';
+import { ProfileService } from '../profile/profile.service';
 import * as argon2 from 'argon2';
 import { JwtService } from '@nestjs/jwt';
 
