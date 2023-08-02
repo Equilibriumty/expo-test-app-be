@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsEnum, IsString } from 'class-validator';
-import { ProviderType } from 'src/profile/entities/profile.entity';
+import { ProviderType } from './../../profile/entities/profile.entity';
 
 export class AuthDto {
   @IsEmail()

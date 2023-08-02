@@ -6,7 +6,8 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(new ValidationPipe());
-
+  app.enableCors();
+  app.setGlobalPrefix('v1/api');
   const config = new DocumentBuilder()
     .setTitle('Profile Service API')
     .setDescription('An api for managing user profiles')
