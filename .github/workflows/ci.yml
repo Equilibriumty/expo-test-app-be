@@ -37,7 +37,7 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD }}
           POSTGRES_DB: ${{ secrets.TEST_DB_NAME }}
 
-        run: POSTGRES_USER=${{ secrets.DB_USER }} POSTGRES_PASSWORD=${{ secrets.TEST_DB_PASSWORD }} POSTGRES_DB=${{ secrets.TEST_DB_NAME }} docker-compose -f "docker-compose.yml" up -d --build test-db
+        run: docker-compose -f "docker-compose.yml" up -d --build test-db
       - name: Install node
         uses: actions/setup-node@v4
         with:
@@ -46,7 +46,12 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      
+      - name: Run format
+        run: yarn format
+
+      - name: Run lint
+        run: yarn lint
+        
       - name: Run e2e tests
         run: yarn test:e2e
 
