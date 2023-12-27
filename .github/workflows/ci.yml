@@ -33,7 +33,7 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD }}
           POSTGRES_DB: ${{ secrets.TEST_DB_NAME }}
 
-        run: docker-compose -f "docker-compose.yml" up -d --build test-db
+        run: POSTGRES_USER=${{ secrets.DB_USER }} POSTGRES_PASSWORD=${{ secrets.TEST_DB_PASSWORD }} POSTGRES_DB=${{ secrets.TEST_DB_NAME }} docker-compose -f "docker-compose.yml" up -d --build test-db
       - name: Install node
         uses: actions/setup-node@v4
         with:
