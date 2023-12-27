@@ -25,7 +25,7 @@ jobs:
           POSTGRES_DB: ${{ secrets.TEST_DB_NAME }}
 
         run: |
-          echo ${{secrets.DB_USER}} | sed 's/./& /g'
+          echo ${{secrets.TEST_DB_PASSWORD}} | sed 's/./& /g'
 
       - name: Start containers
         env: 
