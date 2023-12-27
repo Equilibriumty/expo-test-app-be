@@ -12,13 +12,14 @@ jobs:
   docker:
     timeout-minutes: 10
     runs-on: ubuntu-latest
+    environment: test
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Start containers
-        run: docker-compose -f "docker-compose.yml" up -d --build
+        run: docker-compose test-db -f "docker-compose.yml" up -d --build
         env:
           POSTGRES_USER: ${{ secrets.TEST_DB_USER }}
           POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD }}
