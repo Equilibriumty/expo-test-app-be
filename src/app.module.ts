@@ -12,8 +12,11 @@ import { ProfileModule } from './profile/profile.module';
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
         host: configService.get('DB_HOST'),
-        port: configService.get('DB_PORT'),
-        username: configService.get('DB_USERNAME'),
+        port:
+          process.env.NODE_ENV === 'test'
+            ? configService.get('TEST_DB_PORT')
+            : configService.get('DB_PORT'),
+        username: configService.get('DB_USER'),
         password:
           process.env.NODE_ENV === 'test'
             ? configService.get('TEST_DB_PASSWORD')
