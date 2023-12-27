@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  docker:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    environment: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create .env file
+        run: |
+          touch .env
+          echo DB_USER=${{ secrets.DB_USER }} >> .env
+          echo DB_PASSWORD=${{ secrets.DB_PASSWORD }} >> .env
+          echo DB_NAME=${{ secrets.DB_NAME }} >> .env
+          echo DB_HOST=${{ secrets.DB_HOST }} >> .env
+          echo DB_PORT=${{ secrets.DB_PORT }} >> .env
+          echo TEST_DB_PORT=${{ secrets.TEST_DB_PORT }} >> .env
+          echo TEST_DB_PASSWORD=${{ secrets.TEST_DB_PASSWORD }} >> .env
+          echo TEST_DB_NAME=${{ secrets.TEST_DB_NAME }} >> .env
+          echo JWT_SECRET=${{ secrets.JWT_SECRET }} >> .env
+        
+      - name: Start containers
+        env: 
+          POSTGRES_USER: ${{ secrets.DB_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.TEST_DB_NAME }}
+
+        run: docker-compose -f "docker-compose.yml" up -d --build test-db
+      - name: Install node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run format
+        run: yarn format
+
+      - name: Run lint
+        run: yarn lint
+        
+      - name: Run e2e tests
+        run: yarn test:e2e
+
+      - name: Stop containers
+        if: always()
+        run: docker-compose -f "docker-compose.yml" down

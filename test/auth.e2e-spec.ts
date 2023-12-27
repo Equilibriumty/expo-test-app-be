@@ -4,9 +4,9 @@ import * as request from 'supertest';
 import { CreateProfileDto } from '../src/profile/dto/create-profile.dto';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Profile, ProviderType } from '../src/profile/entities/profile.entity';
-import * as argon2 from 'argon2';
-import { JwtService } from '@nestjs/jwt';
 import { AppModule } from '../src/app.module';
+import { DataSource } from 'typeorm';
+import { JwtService } from '@nestjs/jwt';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication;
@@ -15,57 +15,32 @@ describe('AuthController (e2e)', () => {
     email: 'asdasd@gmail.com',
     password: 'test123',
   };
-  const mockRepository = {
-    find: jest.fn(async () => [
-      {
-        ...mockUser,
-        password: await argon2.hash(mockUser.password),
-      },
-    ]),
-    findOneBy: jest.fn(async () => ({
-      ...mockUser,
-      password: await argon2.hash(mockUser.password),
-    })),
-  };
 
-  const mockRepository1 = {
-    find: jest.fn(),
-    findOne: jest.fn(),
-    save: jest.fn(),
-    findOneBy: jest.fn(),
-  };
-
-  beforeEach(async () => {
+  beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    })
-      .overrideProvider(getRepositoryToken(Profile))
-      .useValue(mockRepository)
-      .compile();
+    }).compile();
 
     app = moduleFixture.createNestApplication();
+    const dataSource = app.get(DataSource);
+    await dataSource.synchronize(true);
     await app.init();
   });
 
   afterAll(async () => {
+    const dataSource = app.get(DataSource);
+    if (dataSource) {
+      await dataSource.dropDatabase();
+      await dataSource.destroy();
+    }
     await app.close();
   });
 
   it('login with non-existent user: FAIL (POST)', async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    })
-      .overrideProvider(getRepositoryToken(Profile))
-      .useValue(mockRepository1)
-      .compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
-
     return request(app.getHttpServer())
       .post('/auth/login')
       .send({
-        email: mockUser.email,
+        email: 'non_existent@gmail.com',
         password: mockUser.password,
       })
       .expect(400)
@@ -76,7 +51,15 @@ describe('AuthController (e2e)', () => {
       });
   });
 
-  it('login: SUCCESS (POST)', () => {
+  it('login: SUCCESS (POST)', async () => {
+    await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: mockUser.email,
+        password: mockUser.password,
+      })
+      .expect(200);
+
     return request(app.getHttpServer())
       .post('/auth/login')
       .send({
@@ -90,35 +73,10 @@ describe('AuthController (e2e)', () => {
   });
 
   it('register: SUCCESS (POST)', async () => {
-    const mockRepository1 = {
-      find: jest.fn(),
-      findOne: jest.fn(),
-      save: jest.fn().mockReturnValue({
-        id: 1,
-        email: mockUser.email,
-        username: mockUser.email.split('@')[0],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        providerType: ProviderType.CLASSIC,
-        password: await argon2.hash(mockUser.password),
-      }),
-      findOneBy: jest.fn(),
-    };
-
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    })
-      .overrideProvider(getRepositoryToken(Profile))
-      .useValue(mockRepository1)
-      .compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
-
     return request(app.getHttpServer())
       .post('/auth/register')
       .send({
-        email: mockUser.email,
+        email: 'register@gmail.com',
         password: mockUser.password,
       })
       .expect(200)
@@ -131,26 +89,6 @@ describe('AuthController (e2e)', () => {
       });
   });
   it('register, user already exists: FAIL (POST)', async () => {
-    const mockRepository1 = {
-      find: jest.fn(),
-      findOne: jest.fn().mockResolvedValue({
-        ...mockUser,
-        id: 1,
-      }),
-      save: jest.fn(),
-      findOneBy: jest.fn(),
-    };
-
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    })
-      .overrideProvider(getRepositoryToken(Profile))
-      .useValue(mockRepository1)
-      .compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
-
     return request(app.getHttpServer())
       .post('/auth/register')
       .send({
@@ -166,60 +104,59 @@ describe('AuthController (e2e)', () => {
   });
 
   it('social sign in, user already exists, should return user: SUCCESS (POST)', async () => {
-    const mockRepository = {
-      findOne: jest.fn().mockResolvedValue({
-        ...mockUser,
-        providerType: ProviderType.GOOGLE,
-      }),
-
-      findOneBy: jest.fn().mockResolvedValue({
-        ...mockUser,
-        providerType: ProviderType.GOOGLE,
-        username: mockUser.email.split('@')[0],
-      }),
+    const userGoogle = {
+      email: 'social_sign_in@gmail.com',
+      password: 'test123',
+      providerType: ProviderType.GOOGLE,
     };
 
-    const jwtMock = {
-      decode: jest
-        .fn()
-        .mockReturnValue({ sub: 'user_sub', email: mockUser.email }),
-    };
-
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    })
-      .overrideProvider(getRepositoryToken(Profile))
-      .useValue(mockRepository)
-
-      .overrideProvider(JwtService)
-      .useValue(jwtMock)
-      .compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
+    const response = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send(userGoogle)
+      .expect(200);
 
     return request(app.getHttpServer())
       .post('/auth/login/social')
       .send({ providerType: ProviderType.GOOGLE })
-      .set('Authorization', 'Bearer mocked-token')
+      .set('Authorization', `Bearer ${response.body.token}`)
       .expect(200)
+      .expect((response) => {
+        expect(response.body).toMatchObject({
+          email: userGoogle.email,
+          providerType: ProviderType.GOOGLE,
+          username: userGoogle.email.split('@')[0],
+        });
+      });
+  });
+  it('social sign in, invalid token: SUCCESS (POST)', async () => {
+    return request(app.getHttpServer())
+      .post('/auth/login/social')
+      .send({ providerType: ProviderType.GOOGLE })
+      .set('Authorization', 'Bearer mocked-token')
+      .expect(401)
       .expect({
-        email: mockUser.email,
-        providerType: ProviderType.GOOGLE,
-        username: mockUser.email.split('@')[0],
+        message: 'Invalid token',
+        error: 'Unauthorized',
+        statusCode: 401,
       });
   });
 
   it('social sign in, user does not exist, should return created user: SUCCESS (POST)', async () => {
+    const userNonExistentGoogle = {
+      email: 'non_google@gmail.com',
+      password: 'test123',
+      providerType: ProviderType.GOOGLE,
+    };
+
     const mockRepository = {
       findOne: jest.fn().mockResolvedValue({
-        ...mockUser,
+        ...userNonExistentGoogle,
         providerType: ProviderType.GOOGLE,
       }),
       save: jest.fn().mockResolvedValue({
-        ...mockUser,
+        ...userNonExistentGoogle,
         providerType: ProviderType.GOOGLE,
-        username: mockUser.email.split('@')[0],
+        username: userNonExistentGoogle.email.split('@')[0],
       }),
       findOneBy: jest.fn().mockResolvedValue(null),
     };
@@ -249,37 +186,9 @@ describe('AuthController (e2e)', () => {
       .set('Authorization', 'Bearer mocked-token')
       .expect(200)
       .expect({
-        email: mockUser.email,
+        email: userNonExistentGoogle.email,
         providerType: ProviderType.GOOGLE,
-        username: mockUser.email.split('@')[0],
-      });
-  });
-
-  it('social sign in, invalid token: SUCCESS (POST)', async () => {
-    const jwtMock = {
-      decode: jest.fn().mockReturnValue(null),
-    };
-
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    })
-
-      .overrideProvider(JwtService)
-      .useValue(jwtMock)
-      .compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
-
-    return request(app.getHttpServer())
-      .post('/auth/login/social')
-      .send({ providerType: ProviderType.GOOGLE })
-      .set('Authorization', 'Bearer mocked-token')
-      .expect(401)
-      .expect({
-        message: 'Invalid token',
-        error: 'Unauthorized',
-        statusCode: 401,
+        username: userNonExistentGoogle.email.split('@')[0],
       });
   });
 });
