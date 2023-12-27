@@ -19,11 +19,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Start containers
-        run: docker-compose  -f "docker-compose.yml" up -d --build test-db
+        run: docker-compose -f "docker-compose.yml" up -d --build test-db
         env:
-          POSTGRES_USER: ${{ secrets.TEST_DB_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.TEST_DB_NAME }}
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: 12345
+          POSTGRES_DB: test-db
       - name: Install node
         uses: actions/setup-node@v4
         with:
