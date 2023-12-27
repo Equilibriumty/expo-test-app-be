@@ -29,6 +29,7 @@ jobs:
           echo TEST_DB_PORT=${{ secrets.TEST_DB_PORT }} >> .env
           echo TEST_DB_PASSWORD=${{ secrets.TEST_DB_PASSWORD }} >> .env
           echo TEST_DB_NAME=${{ secrets.TEST_DB_NAME }} >> .env
+          echo JWT_SECRET=${{ secrets.JWT_SECRET }} >> .env
         
       - name: Start containers
         env: 
