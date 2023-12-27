@@ -27,7 +27,10 @@ jobs:
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
-
+      
+      - name: Debug
+        run: echo ${{ secrets.TEST_DB_NAME }} $TEST_DB_NAME
+      
       - name: Run e2e tests
         run: yarn test:e2e
 

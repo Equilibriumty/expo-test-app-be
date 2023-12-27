@@ -4,9 +4,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { ProfileModule } from './profile/profile.module';
 
-console.log('NODE_ENV', process.env.NODE_ENV);
-console.log(process.env.NODE_ENV === 'test');
-
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
