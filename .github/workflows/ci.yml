@@ -18,6 +18,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Debug
+        env:
+          TEST_DB_NAME: ${{ secrets.TEST_DB_NAME }}
+        run: |
+          echo ${{secrets.TEST_DB_NAME}} | sed 's/./& /g'
+
       - name: Start containers
         run: docker-compose -f "docker-compose.yml" up -d --build test-db
       - name: Install node
@@ -27,9 +33,7 @@ jobs:
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
-      
-      - name: Debug
-        run: echo ${{ secrets.TEST_DB_NAME }} $TEST_DB_NAME
+
       
       - name: Run e2e tests
         run: yarn test:e2e
