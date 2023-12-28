@@ -2,15 +2,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
 import { CreateProfileDto } from '../src/profile/dto/create-profile.dto';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Profile, ProviderType } from '../src/profile/entities/profile.entity';
+import { ProviderType } from '../src/profile/entities/profile.entity';
 import { AppModule } from '../src/app.module';
 import { DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication;
-
+  let jwtService: JwtService;
   const mockUser: CreateProfileDto = {
     email: 'asdasd@gmail.com',
     password: 'test123',
@@ -22,6 +21,7 @@ describe('AuthController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    jwtService = app.get<JwtService>(JwtService);
     const dataSource = app.get(DataSource);
     await dataSource.synchronize(true);
     await app.init();
@@ -148,47 +148,21 @@ describe('AuthController (e2e)', () => {
       providerType: ProviderType.GOOGLE,
     };
 
-    const mockRepository = {
-      findOne: jest.fn().mockResolvedValue({
-        ...userNonExistentGoogle,
-        providerType: ProviderType.GOOGLE,
-      }),
-      save: jest.fn().mockResolvedValue({
-        ...userNonExistentGoogle,
-        providerType: ProviderType.GOOGLE,
-        username: userNonExistentGoogle.email.split('@')[0],
-      }),
-      findOneBy: jest.fn().mockResolvedValue(null),
-    };
+    const payload = { email: userNonExistentGoogle.email, sub: '1234567890' };
 
-    const jwtMock = {
-      decode: jest
-        .fn()
-        .mockReturnValue({ sub: 'user_sub', email: mockUser.email }),
-    };
-
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    })
-      .overrideProvider(getRepositoryToken(Profile))
-      .useValue(mockRepository)
-
-      .overrideProvider(JwtService)
-      .useValue(jwtMock)
-      .compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
+    const token = await jwtService.signAsync(payload);
 
     return request(app.getHttpServer())
       .post('/auth/login/social')
       .send({ providerType: ProviderType.GOOGLE })
-      .set('Authorization', 'Bearer mocked-token')
+      .set('Authorization', `Bearer ${token}`)
       .expect(200)
-      .expect({
-        email: userNonExistentGoogle.email,
-        providerType: ProviderType.GOOGLE,
-        username: userNonExistentGoogle.email.split('@')[0],
-      });
+      .expect((response) =>
+        expect(response.body).toMatchObject({
+          email: userNonExistentGoogle.email,
+          providerType: ProviderType.GOOGLE,
+          username: userNonExistentGoogle.email.split('@')[0],
+        }),
+      );
   });
 });
