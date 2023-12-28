@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  docker:
+  e2e:
     timeout-minutes: 10
     runs-on: ubuntu-latest
     environment: test
